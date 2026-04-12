@@ -17,7 +17,9 @@ All required packages listed in pyproject.toml under dependencies - Can install 
 Create a .env file with these values:\
 API_PROVIDER=anthropic or openai\
 OPENAI_API_KEY=x, where x is your API key for OpenAI.\
-ANTHROPIC_API_KEY=x, where x is your API key for Anthropic.
+OPENAI_MODEL=x, where x is the OpenAI model that you want the agent to use.\
+ANTHROPIC_API_KEY=x, where x is your API key for Anthropic.\
+ANTHROPIC_MODEL=x, where x is the Anthropic model that you want the agent to use.
 
 ## Running Agent
 To run the agent from the command line:\

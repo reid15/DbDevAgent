@@ -28,6 +28,9 @@ load_dotenv()
 # Choose provider via env variable: "openai" (default) or "anthropic"
 API_PROVIDER = os.getenv("API_PROVIDER", "openai").lower()
 
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5").lower()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-mini").lower()
+
 openai_client = OpenAI()
 anthropic_client = anthropic.Anthropic()
 
@@ -139,7 +142,7 @@ def export_context():
 # --- OpenAI call ---
 def call_openai():
     response = openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model=OPENAI_MODEL,
         messages=messages,
         tools=openai_tools,
         tool_choice="auto"
@@ -159,7 +162,7 @@ def call_openai():
             })
 
         final = openai_client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model=OPENAI_MODEL,
             messages=messages
         )
         final_message = final.choices[0].message
@@ -176,7 +179,7 @@ def call_anthropic():
     anthropic_messages = [m for m in messages if m["role"] != "system"]
 
     response = anthropic_client.messages.create(
-        model="claude-sonnet-4-5",
+        model=ANTHROPIC_MODEL,
         max_tokens=8096,
         system=system_prompt,
         tools=anthropic_tools,
@@ -200,7 +203,7 @@ def call_anthropic():
         anthropic_messages.append({"role": "user", "content": tool_results})
 
         response = anthropic_client.messages.create(
-            model="claude-sonnet-4-5",
+            model=ANTHROPIC_MODEL,
             max_tokens=8096,
             system=system_prompt,
             tools=anthropic_tools,
