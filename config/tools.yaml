@@ -1,0 +1,59 @@
+- name: get_databases
+  description: Return a list of all user databases on the SQL Server instance.
+  parameters:
+    server_name:
+      type: string
+      description: Name of the database server
+
+- name: get_db_objects
+  description: Return all user-created objects from a specified database.
+  parameters:
+    server_name:
+      type: string
+      description: Name of the database server
+    db_name:
+      type: string
+      description: Name of the database
+      
+- name: get_object_definition
+  description: Return the SQL for the definition of the specified object. For a table, return a list of columns
+  parameters:
+    server_name:
+      type: string
+      description: Name of the database server
+    db_name:
+      type: string
+      description: Name of the database
+    schema:
+      type: string
+      description: Name of the schema
+    object_name:
+      type: string
+      description: Name of the object
+     
+- name: save_file
+  description: Save the contents to the specified file name.
+  parameters:
+    directory_path:
+      type: string
+      description: The path of the directory where the file will be saved
+    filename:
+      type: string
+      description: Name of the file
+    content:
+      type: string
+      description: The contents to save to the file  
+
+- name: list_files
+  description: List all files found in the specified directory.
+  parameters:
+    directory:
+      type: string
+      description: Name of the directory
+            
+- name: read_file
+  description: Read the contents of the file specified by the filepath parameter.
+  parameters:
+    filepath:
+      type: string
+      description: The path to the file
