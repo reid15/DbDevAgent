@@ -243,6 +243,16 @@ def get_object_definition(server_name, db_name, schema, object_name):
                         WHERE o.is_ms_shipped = 0
                             AND s.[name] NOT IN ('dbo', 'sys', 'guest', 'INFORMATION_SCHEMA')
                         GROUP BY s.[name]
+                        UNION ALL
+                        -- Triggers
+                        SELECT s.[name] AS schema_name, o.[name], 'Trigger' as [type], m.definition 
+                        FROM sys.triggers AS t
+                        JOIN sys.sql_modules AS m
+                            ON m.object_id = t.object_id
+                        JOIN sys.objects AS o
+                            ON o.object_id = t.parent_id
+                        JOIN sys.schemas AS s
+                            ON s.schema_id = o.schema_id
                         )
                         SELECT [schema], [name], [type], [definition]
                         FROM cte

@@ -1,5 +1,5 @@
 
--- Create objects for a test database
+-- Create objects for a SQL Server test database
 
 USE TestDB
 GO
@@ -77,10 +77,42 @@ DROP TABLE IF EXISTS dbo.[State];
 CREATE TABLE dbo.[State](
 	StateId INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	StateCode CHAR(2) NOT NULL UNIQUE,
-	StateName VARCHAR(100) NOT NULL
+	StateName VARCHAR(100) NOT NULL,
+	UpdatedAt DATETIME NULL
 );
 
 CREATE UNIQUE NONCLUSTERED INDEX ix_dbo_state_StateName ON dbo.[State] (StateName);
+GO
+
+-- Add trigger for State
+
+GO
+CREATE OR ALTER TRIGGER tr_State_InsertUpdate
+ON dbo.[State]
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE t
+    SET t.UpdatedAt = GETDATE()
+    FROM dbo.[State] AS t
+    JOIN inserted AS i 
+		ON t.StateId = i.StateId;
+
+END;
+GO
+
+-- State data
+
+INSERT INTO dbo.[State] (StateCode, StateName)
+VALUES ('GA', 'GA');
+
+UPDATE dbo.[State] SET
+	StateName = 'Georgia'
+WHERE StateCode = 'GA';
+
+SELECT * FROM dbo.[State];
 
 GO
 
@@ -118,6 +150,8 @@ FROM dbo.TestTable
 WHERE ID = @ID;
 
 GO
+
+-- View
 
 CREATE OR ALTER VIEW dbo.vwTestTable
 AS
