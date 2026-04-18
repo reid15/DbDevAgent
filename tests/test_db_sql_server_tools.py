@@ -4,8 +4,10 @@ All database connections are mocked — no real SQL Server required.
 """
 
 from unittest.mock import MagicMock, patch, call
+import db_sql_server
 import pyodbc
 import pytest
+import sqlglot
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -287,3 +289,110 @@ class TestGetObjectDefinition:
         result = get_object_definition("bad_server", "SalesDB", "dbo", "Customers")
 
         assert result == []
+
+# SQL Tests
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def make_mock_conn(captured_sql: list):
+    """
+    Returns a mock pyodbc connection whose cursor().execute() intercepts
+    the SQL string, validates it with sqlglot (tsql dialect), and appends
+    it to `captured_sql` for optional further inspection in tests.
+    """
+    mock_cursor = MagicMock()
+
+    def capture_and_validate(sql, *args, **kwargs):
+        captured_sql.append(sql)
+        errors = sqlglot.parse(sql, dialect="tsql", error_level=sqlglot.ErrorLevel.RAISE)
+
+    mock_cursor.execute.side_effect = capture_and_validate
+    mock_cursor.fetchall.return_value = []
+
+    mock_conn = MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+    # Support use as a context manager (with ... as conn)
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=False)
+
+    return mock_conn
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+class TestGetDatabasesSQL:
+    def test_sql_is_valid_tsql(self):
+        """get_databases() should contain valid T-SQL."""
+        captured_sql = []
+        mock_conn = make_mock_conn(captured_sql)
+
+        with patch.object(db_sql_server, "get_connection_sql_server", return_value=mock_conn):
+            db_sql_server.get_databases("my_server")
+
+        assert len(captured_sql) == 1, "Expected exactly one SQL statement to be executed"
+
+    def test_sql_raises_on_syntax_error(self):
+        """Sanity check: a deliberately broken query should fail sqlglot parsing."""
+        broken_sql = "SELECT FORM sys.databases"  # FORM instead of FROM
+        with pytest.raises(sqlglot.errors.ParseError):
+            sqlglot.parse(broken_sql, dialect="tsql", error_level=sqlglot.ErrorLevel.RAISE)
+
+
+class TestGetDbObjectsSQL:
+    def test_sql_is_valid_tsql(self):
+        """get_db_objects() should contain valid T-SQL."""
+        captured_sql = []
+        mock_conn = make_mock_conn(captured_sql)
+
+        with patch.object(db_sql_server, "get_connection_sql_server", return_value=mock_conn):
+            db_sql_server.get_db_objects("my_server", "my_db")
+
+        assert len(captured_sql) == 1, "Expected exactly one SQL statement to be executed"
+
+    def test_sql_uses_union_all(self):
+        """get_db_objects() SQL should include UNION ALL clauses."""
+        captured_sql = []
+        mock_conn = make_mock_conn(captured_sql)
+
+        with patch.object(db_sql_server, "get_connection_sql_server", return_value=mock_conn):
+            db_sql_server.get_db_objects("my_server", "my_db")
+
+        assert "UNION ALL" in captured_sql[0].upper()
+
+
+class TestGetObjectDefinitionSQL:
+    def test_sql_is_valid_tsql(self):
+        """get_object_definition() should contain valid T-SQL."""
+        captured_sql = []
+        mock_conn = make_mock_conn(captured_sql)
+
+        with patch.object(db_sql_server, "get_connection_sql_server", return_value=mock_conn):
+            db_sql_server.get_object_definition("my_server", "my_db", "dbo", "my_table")
+
+        assert len(captured_sql) == 1, "Expected exactly one SQL statement to be executed"
+
+    def test_sql_uses_cte(self):
+        """get_object_definition() SQL should use a CTE (WITH clause)."""
+        captured_sql = []
+        mock_conn = make_mock_conn(captured_sql)
+
+        with patch.object(db_sql_server, "get_connection_sql_server", return_value=mock_conn):
+            db_sql_server.get_object_definition("my_server", "my_db", "dbo", "my_table")
+
+        assert captured_sql[0].strip().upper().startswith("WITH"), \
+            "Expected SQL to start with a CTE (WITH ...)"
+
+    def test_sql_filters_by_schema_and_name(self):
+        """get_object_definition() SQL should include a WHERE clause filtering by schema and name."""
+        captured_sql = []
+        mock_conn = make_mock_conn(captured_sql)
+
+        with patch.object(db_sql_server, "get_connection_sql_server", return_value=mock_conn):
+            db_sql_server.get_object_definition("my_server", "my_db", "dbo", "my_table")
+
+        assert "WHERE" in captured_sql[0].upper()
+
