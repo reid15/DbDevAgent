@@ -2,3 +2,4 @@
 agent.log
 *.bat
 *.pyc
+/file_output

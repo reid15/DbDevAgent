@@ -1,16 +1,24 @@
 - name: get_databases
-  description: Return a list of all user databases on the SQL Server instance.
+  description: Return a list of all user databases on the database instance/server.
   parameters:
+    db_type:
+      type: string
+      enum: [sql_server, sqlite]
+      description: Enum for the type of database system
     server_name:
       type: string
-      description: Name of the database server
+      description: Name of the database server. For SQLite, use this for the database file path
 
 - name: get_db_objects
   description: Return all user-created objects from a specified database.
   parameters:
+    db_type:
+      type: string
+      enum: [sql_server, sqlite]
+      description: Enum for the type of database system  
     server_name:
       type: string
-      description: Name of the database server
+      description: Name of the database server For SQLite, use this for the database file path
     db_name:
       type: string
       description: Name of the database
@@ -18,9 +26,13 @@
 - name: get_object_definition
   description: Return the SQL for the definition of the specified object. For a table, return a list of columns
   parameters:
+    db_type:
+      type: string
+      enum: [sql_server, sqlite]
+      description: Enum for the type of database system 
     server_name:
       type: string
-      description: Name of the database server
+      description: Name of the database server For SQLite, use this for the database file path
     db_name:
       type: string
       description: Name of the database

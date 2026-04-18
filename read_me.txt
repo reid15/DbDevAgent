@@ -3,8 +3,8 @@
 
 ## Overview 
 AI Agent to assist with database development.\
-The agent can read database objects but not the data. It can also read and write files, but not delete them.\
-Currently, the tool uses either the OpenAI  or Anthropic API, and reads the metadata for SQL Server databases.  
+The agent can read database objects but not the data. It can also read and write files, but not edit or delete them.\
+Currently, the tool uses either the OpenAI or Anthropic API, and reads the metadata for SQL Server and SQLite databases.\ 
 
 ## Prereqs 
 Python 3.9+ (I'm using 3.14.3)\
@@ -57,7 +57,8 @@ test_file_operations.py: Tests for file_operations.py tools\
 test_db_sql_server_tools.py: Tests for db_sql_server.py tools\
 Uses pytest for tests (-v = verbose)\
 	pytest tests/test_file_operations.py -v\
-	pytest tests/test_db_sql_server_tools.py -v
+	pytest tests/test_db_sql_server_tools.py -v\
+	pytest tests/test_db_sqlite_tools.py -v\	
 	
 ## Agent Tools 	
 
