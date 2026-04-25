@@ -86,7 +86,7 @@ def get_object_definition(server_name, db_name, schema, object_name):
                             -- Data Type
                             c.DATA_TYPE,
                             -- Data Type length
-                            CASE WHEN c.DATA_TYPE IN ('char', 'varchar', 'nchar', 'nvarchar') THEN 
+                            CASE WHEN c.DATA_TYPE IN ('char', 'varchar', 'nchar', 'nvarchar', 'binary', 'varbinary') THEN 
                                 '(' + IIF(c.CHARACTER_MAXIMUM_LENGTH = -1, 'MAX', CAST(c.CHARACTER_MAXIMUM_LENGTH AS VARCHAR(10))) + ')' 
                                 WHEN c.DATA_TYPE IN ('numeric', 'decimal') THEN CONCAT('(', c.NUMERIC_PRECISION, ',', c.NUMERIC_SCALE, ')')
                             ELSE '' END, ' ', 
