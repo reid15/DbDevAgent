@@ -107,7 +107,7 @@ SELECT * FROM vw_TestTableAlt;
 
 -- Return objects in DB
 
-SELECT type, name, sql
+SELECT type, name, tbl_name, sql
 FROM sqlite_master
 -- Exclude the sequence object - The Table SQL will designate autoincrement
 WHERE name <> 'sqlite_sequence'

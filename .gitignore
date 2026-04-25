@@ -3,3 +3,4 @@ agent.log
 *.bat
 *.pyc
 /file_output
+tests/TestPrompts.txt

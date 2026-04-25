@@ -45,10 +45,3 @@ def get_object_definition(db_path: str, name: str) -> list[dict]:
                     for row in rows]
     except sqlite3.Error:
         return []
-        
-#print(get_databases(r'C:\UserFiles\SQLite\database.db'))
-
-#print(get_db_objects(r'C:\UserFiles\SQLite\database.db'))
-
-#print(get_object_definition(r'C:\UserFiles\SQLite\database.db', 'State'))
-
