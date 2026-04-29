@@ -30,7 +30,10 @@ API_PROVIDER = os.getenv("API_PROVIDER", "openai").lower()
 
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5").lower()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-mini").lower()
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2").lower()
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 
+ollama_client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")  # api_key is required but unused
 openai_client = OpenAI()
 anthropic_client = anthropic.Anthropic()
 
@@ -222,7 +225,50 @@ def call_anthropic():
 
     return final_text
 
+def call_ollama():
+    # Separate system prompt from conversation messages
+    ollama_messages = [m for m in messages if m["role"] != "system"]
+    
+    response = ollama_client.chat.completions.create(
+        model=OLLAMA_MODEL,
+        messages=[{"role": "system", "content": system_prompt}] + ollama_messages,
+        tools=openai_tools,
+        tool_choice="required"  # Force the model to use a tool rather than "auto"
+    )
+    message = response.choices[0].message
 
+    if not message.tool_calls and message.content and "arguments" in message.content:
+        print("\n[WARNING] Model returned raw JSON instead of executing the tool.")
+
+    if message.tool_calls:
+        ollama_messages.append(message)
+        for tool_call in message.tool_calls:
+            function_name = tool_call.function.name
+            arguments = json.loads(tool_call.function.arguments)
+            result = call_tool(function_name, arguments)
+            ollama_messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(result)
+            })
+
+        final = ollama_client.chat.completions.create(
+            model=OLLAMA_MODEL,
+            messages=[{"role": "system", "content": system_prompt}] + ollama_messages
+        )
+        final_message = final.choices[0].message
+        ollama_messages.append(final_message)
+
+        # Sync back to shared messages
+        messages.clear()
+        messages.append({"role": "system", "content": system_prompt})
+        messages.extend(ollama_messages)
+
+        return final_message.content or "[No response after tool execution]"
+    else:
+        messages.append(message)
+        return message.content
+        
 def run_agent():
     print(f"Using provider: {API_PROVIDER.upper()}")
     while True:
@@ -244,6 +290,8 @@ def run_agent():
 
         if API_PROVIDER == "anthropic":
             reply = call_anthropic()
+        elif API_PROVIDER == "ollama":
+            reply = call_ollama()
         else:
             reply = call_openai()
 

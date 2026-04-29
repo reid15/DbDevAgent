@@ -4,7 +4,8 @@
 ## Overview 
 AI Agent to assist with database development.\
 The agent can read database objects but not the data. It can also read and write files, but not edit or delete them.\
-Currently, the tool uses either the OpenAI or Anthropic API, and reads the metadata for SQL Server and SQLite databases.\ 
+Currently, the tool can use models from the OpenAI, Anthropic API, or local models through Ollama.
+The tool can read the metadata for SQL Server and SQLite databases.\ 
 
 ## Prereqs 
 Python 3.9+ (I'm using 3.14.3)\
@@ -15,11 +16,13 @@ All required packages listed in pyproject.toml under dependencies - Can install 
 ## Setup 
 
 Create a .env file with these values:\
-API_PROVIDER=anthropic or openai\
+API_PROVIDER=anthropic, openai, ollama\
 OPENAI_API_KEY=x, where x is your API key for OpenAI.\
 OPENAI_MODEL=x, where x is the OpenAI model that you want the agent to use.\
 ANTHROPIC_API_KEY=x, where x is your API key for Anthropic.\
 ANTHROPIC_MODEL=x, where x is the Anthropic model that you want the agent to use.
+OLLAMA_MODEL=x, where x is the local Ollama model that you want the agent to use.
+OLLAMA_BASE_URL=x, where x is the URL for the local Ollama model.
 
 ## Running Agent
 To run the agent from the command line:\
