@@ -49,8 +49,8 @@ CREATE TABLE dbo.TestTable2(
 
 INSERT INTO dbo.TestTable2(Amount, Amount2, Blob1)
 VALUES
-	(12.345, 67.89, CAST('ABC' AS BINARY(10)),
-	(2.00, 7.134), CAST('DEF' AS BINARY(10));
+	(12.345, 67.89, CAST('ABC' AS BINARY(10))),
+	(2.00, 7.134, CAST('DEF' AS BINARY(10)));
 
 GO
 
