@@ -4,7 +4,7 @@
 ## Overview 
 AI Agent to assist with database development.\
 The agent can read database objects but not the data. It can also read and write files, but not edit or delete them.\
-Currently, the tool can use models from the OpenAI, Anthropic API, or local models through Ollama.
+The tool can use models from the OpenAI, Anthropic API, Ollama Cloud, or local models through Ollama.
 The tool can read the metadata for SQL Server and SQLite databases.\ 
 
 ## Prereqs 
@@ -20,9 +20,14 @@ API_PROVIDER=anthropic, openai, ollama\
 OPENAI_API_KEY=x, where x is your API key for OpenAI.\
 OPENAI_MODEL=x, where x is the OpenAI model that you want the agent to use.\
 ANTHROPIC_API_KEY=x, where x is your API key for Anthropic.\
-ANTHROPIC_MODEL=x, where x is the Anthropic model that you want the agent to use.
-OLLAMA_MODEL=x, where x is the local Ollama model that you want the agent to use.
-OLLAMA_BASE_URL=x, where x is the URL for the local Ollama model.
+ANTHROPIC_MODEL=x, where x is the Anthropic model that you want the agent to use.\
+OLLAMA_MODEL=x, where x is the local Ollama model that you want the agent to use.\
+OLLAMA_BASE_URL=x, where x is the URL for the local Ollama model.\
+OLLAMA_CLOUD_MODEL=x, where x is the cloud Ollama model that you want the agent to use.\
+OLLAMA_API_KEY=x, where x is your API Key for Ollama cloud.\
+OLLAMA_CLOUD_URL=x, where x is the URL for Ollama cloud.\
+
+API_PROVIDER is required. You'll need all of the values for the model that you want to use.\
 
 ## Running Agent
 To run the agent from the command line:\
