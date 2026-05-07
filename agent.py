@@ -245,7 +245,11 @@ def call_ollama():
         print("\n[WARNING] Model returned raw JSON instead of executing the tool.")
 
     if message.tool_calls:
-        ollama_messages.append(message)
+        ollama_messages.append({
+            "role": "assistant",
+            "content": message.content or "",
+            "tool_calls": message.tool_calls
+        })
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
             arguments = json.loads(tool_call.function.arguments)
@@ -258,10 +262,15 @@ def call_ollama():
 
         final = ollama_client.chat.completions.create(
             model=OLLAMA_MODEL,
-            messages=[{"role": "system", "content": system_prompt}] + ollama_messages
+            messages=[{"role": "system", "content": system_prompt}] + ollama_messages,
+            tools=openai_tools,
+            tool_choice="none"
         )
         final_message = final.choices[0].message
-        ollama_messages.append(final_message)
+        ollama_messages.append({
+            "role": "assistant",
+            "content": final_message.content
+        })
 
         # Sync back to shared messages
         messages.clear()
@@ -270,7 +279,10 @@ def call_ollama():
 
         return final_message.content or "[No response after tool execution]"
     else:
-        messages.append(message)
+        messages.append({
+            "role": "assistant",
+            "content": message.content
+        })
         return message.content
        
 def call_ollama_cloud():
@@ -285,7 +297,11 @@ def call_ollama_cloud():
     message = response.choices[0].message
 
     if message.tool_calls:
-        ollama_cloud_messages.append(message)
+        ollama_cloud_messages.append({
+            "role": "assistant",
+            "content": message.content or "",
+            "tool_calls": message.tool_calls
+        })
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
             arguments = json.loads(tool_call.function.arguments)
@@ -298,10 +314,15 @@ def call_ollama_cloud():
 
         final = ollama_cloud_client.chat.completions.create(
             model=OLLAMA_CLOUD_MODEL,
-            messages=[{"role": "system", "content": system_prompt}] + ollama_cloud_messages
+            messages=[{"role": "system", "content": system_prompt}] + ollama_cloud_messages,
+            tools=openai_tools,
+            tool_choice="none"
         )
         final_message = final.choices[0].message
-        ollama_cloud_messages.append(final_message)
+        ollama_cloud_messages.append({
+            "role": "assistant",
+            "content": final_message.content
+        })
 
         messages.clear()
         messages.append({"role": "system", "content": system_prompt})
@@ -309,7 +330,10 @@ def call_ollama_cloud():
 
         return final_message.content or "[No response after tool execution]"
     else:
-        messages.append(message)
+        messages.append({
+            "role": "assistant",
+            "content": message.content
+        })
         return message.content
         
 def run_agent():
