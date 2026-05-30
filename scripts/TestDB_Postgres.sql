@@ -1,6 +1,11 @@
 -- Create objects for a PostgreSQL test database
 -- Converted from SQL Server
 
+-- Cleanup - If re-running script
+
+DROP FUNCTION IF EXISTS dbo.gettesttable;
+DROP VIEW IF EXISTS dbo.vwtesttable;
+
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS alt;
 
@@ -11,7 +16,7 @@ CREATE SCHEMA IF NOT EXISTS alt;
 DROP TABLE IF EXISTS alt.testtable;
 
 CREATE TABLE alt.testtable (
-    id          SERIAL PRIMARY KEY,
+    id          int GENERATED ALWAYS AS IDENTITY NOT NULL PRIMARY KEY,
     displayname VARCHAR(50)  NOT NULL,
     isactive    BOOLEAN      NOT NULL
 );
@@ -23,7 +28,7 @@ DROP TABLE IF EXISTS dbo.testtable;
 CREATE SCHEMA IF NOT EXISTS dbo;
 
 CREATE TABLE dbo.testtable (
-    id           SERIAL PRIMARY KEY,
+    id           int GENERATED ALWAYS AS IDENTITY NOT NULL PRIMARY KEY,
     displayname  VARCHAR(50) NOT NULL,
     displayorder INT         NOT NULL CHECK (displayorder > 0),
     isactive     BOOLEAN     NOT NULL
@@ -41,20 +46,17 @@ VALUES
 DROP TABLE IF EXISTS dbo.testtable2;
 
 CREATE TABLE dbo.testtable2 (
-    id      SERIAL PRIMARY KEY,
+    id      int GENERATED ALWAYS AS IDENTITY NOT NULL PRIMARY KEY,
     amount  NUMERIC(10, 4)  NULL,
     amount2 NUMERIC(10, 4)  NULL,
     -- BINARY(n) -> BYTEA in PostgreSQL (fixed-length binary not natively supported)
-    blob1   BYTEA           NULL,
-    blob2   BYTEA           NULL,
-    blob3   BYTEA           NULL
+    blob1   BYTEA           NULL
 );
 
 INSERT INTO dbo.testtable2 (amount, amount2, blob1)
 VALUES
-    (12.345, 67.89, RPAD('ABC', 10, '\x00')::BYTEA),
-    (2.00,   7.134, RPAD('DEF', 10, '\x00')::BYTEA);
-
+    (12.345, 67.89, 'ABC'::BYTEA),
+    (2.00,   7.134, 'DEF'::BYTEA);
 
 DROP TABLE IF EXISTS dbo.compoundkey;
 DROP TABLE IF EXISTS dbo.grouptable;
@@ -76,7 +78,7 @@ CREATE TABLE dbo.compoundkey (
 DROP TABLE IF EXISTS dbo.state;
 
 CREATE TABLE dbo.state (
-    stateid   SERIAL       PRIMARY KEY,
+    stateid   int GENERATED ALWAYS AS IDENTITY NOT NULL       PRIMARY KEY,
     statecode CHAR(2)      NOT NULL UNIQUE,
     statename VARCHAR(100) NOT NULL,
     updatedat TIMESTAMP    NULL
@@ -218,11 +220,9 @@ VALUES (1, 'GA', 'Georgia');
 -- Call the function that reads from the temp table
 SELECT * FROM dbo.getstatematch_from_type();
 
-
 -- Test the scalar function via the view
 SELECT *, dbo.formatdisplayname(displayname) AS formattedname
 FROM dbo.vwtesttable;
-
 
 -- Test the synonym equivalent
 SELECT * FROM dbo.masterobjects;

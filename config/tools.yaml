@@ -8,6 +8,15 @@
     server_name:
       type: string
       description: Name of the database server. For SQLite, use this for the database file path
+    user:
+      type: string
+      description: User name. Not required for SQL Server or SQLite.
+    password:
+      type: string
+      description: Password. Not required for SQL Server or SQLite.
+    port:
+      type: integer
+      description: Port number. Not required for SQL Server or SQLite.
 
 - name: get_db_objects
   description: Return all user-created objects from a specified database.
@@ -22,6 +31,15 @@
     db_name:
       type: string
       description: Name of the database
+    user:
+      type: string
+      description: User name. Not required for SQL Server or SQLite.
+    password:
+      type: string
+      description: Password. Not required for SQL Server or SQLite.
+    port:
+      type: integer
+      description: Port number. Not required for SQL Server or SQLite.
       
 - name: get_object_definition
   description: Return the SQL for the definition of the specified object. For a table, return a list of columns
@@ -42,6 +60,15 @@
     object_name:
       type: string
       description: Name of the object
+    user:
+      type: string
+      description: User name. Not required for SQL Server or SQLite.
+    password:
+      type: string
+      description: Password. Not required for SQL Server or SQLite.
+    port:
+      type: integer
+      description: Port number. Not required for SQL Server or SQLite.
      
 - name: save_file
   description: Save the contents to the specified file name.

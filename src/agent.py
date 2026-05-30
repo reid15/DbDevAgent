@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load settings from .env file
-load_dotenv()
+load_dotenv(dotenv_path="config/.env")
 
 # Choose provider via env variable: "openai" (default), "anthropic", "ollama", "ollama_cloud"
 API_PROVIDER = os.getenv("API_PROVIDER", "openai").lower()

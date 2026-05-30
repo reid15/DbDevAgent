@@ -16,12 +16,21 @@
 - Tools with a db_type parameter are expecting an Enum value. Use one of these values:
 	'sql_server' for a SQL Server database 
     'sqlite' for a SQLite database
+	'postgres' for a Postgres/PostgreSQL database
+	'mysql' for a MySQL database
 	
 ### SQL Server
+- If a user and password aren't specified, assume Windows Authentication is being used.
 
 ### SQLite
 - For a SQLite database, when calling tools, use the database file path in the server_name parameter.
 - For any tools that use a schema or db_name parameter, pass in an empty string
+
+### Postgres
+- Host and Server Name are interchangeable terms for this Agent
+
+### MySQL
+- Host and Server Name are interchangeable terms for this Agent
 
 ## Tools 
 

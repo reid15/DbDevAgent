@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "database-agent"
-version = "1.3.1"
-dependencies = ["anthropic","openai","pyodbc","python-dotenv","pyyaml","sqlglot"]
+version = "1.4.0"
+dependencies = ["anthropic","openai","mysql-connector-python","pyodbc","python-dotenv","pyyaml","psycopg2","sqlglot"]
 description = "Agent for database development"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = ["pytest"]
@@ -19,3 +19,4 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["src"]

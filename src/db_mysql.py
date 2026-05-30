@@ -127,7 +127,7 @@ def get_object_definition(host, db_name, user, password, schema, object_name, po
                     # Views
                     ("""
                         SELECT 'VIEW'           AS type,
-                               view_definition  AS definition
+                               CONCAT('CREATE VIEW ', TABLE_SCHEMA, '.', TABLE_NAME, ' AS ', view_definition)  AS definition
                         FROM information_schema.views
                         WHERE table_schema = %s
                           AND table_name   = %s;
@@ -147,6 +147,8 @@ def get_object_definition(host, db_name, user, password, schema, object_name, po
                                            ' ',
                                            -- Nullability
                                            IF(c.is_nullable = 'NO', 'NOT NULL', 'NULL'),
+                                           -- Auto Increment
+                                           IF(c.extra LIKE '%auto_increment%', ' AUTO_INCREMENT', ''),
                                            -- Default value
                                            IF(c.column_default IS NOT NULL,
                                               CONCAT(' DEFAULT ', c.column_default),

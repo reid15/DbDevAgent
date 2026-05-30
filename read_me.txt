@@ -8,14 +8,14 @@ The tool can use models from the OpenAI, Anthropic API, Ollama Cloud, or local m
 The tool can read the metadata for SQL Server and SQLite databases.\ 
 
 ## Prereqs 
-Python 3.9+ (I'm using 3.14.3)\
+Python 3.10+ (I'm using 3.14.3)\
 Uses Windows Authentication for SQL Server access\
 All required packages listed in pyproject.toml under dependencies - Can install with:\
 	pip install -e . 
 
 ## Setup 
 
-Create a .env file with these values:\
+Create a .env file in the config directory with these values:\
 API_PROVIDER=anthropic, openai, ollama\
 OPENAI_API_KEY=x, where x is your API key for OpenAI.\
 OPENAI_MODEL=x, where x is the OpenAI model that you want the agent to use.\
@@ -27,11 +27,11 @@ OLLAMA_CLOUD_MODEL=x, where x is the cloud Ollama model that you want the agent 
 OLLAMA_API_KEY=x, where x is your API Key for Ollama cloud.\
 OLLAMA_CLOUD_URL=x, where x is the URL for Ollama cloud.\
 
-API_PROVIDER is required. You'll need all of the values for the model that you want to use.\
+API_PROVIDER is required. You'll need all of the values for the model provider(s) that you want to use.\
 
 ## Running Agent
 To run the agent from the command line:\
-	python agent.py
+	python src/agent.py
 
 Enter prompts to interact with the agent.
 	
@@ -45,10 +45,12 @@ clear: Clear the conversation history
 ## File Structure 
 
 agent.log: File created with any errors that crash the agent.\
-agent.py: Entry point for agent - Manages tools and calls to AI API\
-db_sql_server.py: Tools for accessing and interacting with SQL Server databases\
-file_operations.py: Tools for reading and writing to files\
-pyproject.toml: Project properties - Dependencies, config for tests to run from tests directory.
+pyproject.toml: Project properties - Dependencies, config for tests to run from tests directory.\
+
+src directory\
+	agent.py: Entry point for agent - Manages tools and calls to AI API\
+	db_sql_server.py: Tools for accessing and interacting with SQL Server databases\
+	file_operations.py: Tools for reading and writing to files\
 	
 config directory\
 	agent.md: Agent instructions - Read in as system prompt for AI API calls\
