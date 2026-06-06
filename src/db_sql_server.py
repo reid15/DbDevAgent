@@ -1,6 +1,8 @@
 # Tools to get metadata from SQL Server
 
 import pyodbc
+import sqlglot
+from sqlglot import exp
 
 def get_connection_sql_server(server_name, db_name):
     """Get a connection for a SQL Server database"""
@@ -268,5 +270,69 @@ def get_object_definition(server_name, db_name, schema, object_name):
 	except pyodbc.Error as e:
 		print("Error connecting to SQL Server:", e)
 		return [] 
-      
-     
+
+def execute_select_query(server_name, db_name, sql):
+	"""Execute a SQL SELECT query and return the results as a list of dicts.
+
+	Only SELECT statements are permitted. Any other statement type (INSERT,
+	UPDATE, DELETE, DDL, etc.) will raise a ValueError before touching the
+	database.
+
+	Args:
+		server_name: SQL Server instance name.
+		db_name:     Target database name.
+		sql:         The SQL query string to execute.
+
+	Returns:
+		A list of dicts mapping column name -> value for each row returned.
+
+	Raises:
+		ValueError: If the query is not a plain SELECT statement, or if it
+		            cannot be parsed.
+	"""
+	# --- Validate with sqlglot before executing anything ---
+	try:
+		parsed = sqlglot.parse(sql, read="tsql")
+	except sqlglot.errors.ParseError as e:
+		raise ValueError(f"Query could not be parsed: {e}") from e
+
+	parsed = [s for s in parsed if s is not None]
+	if not parsed:
+		raise ValueError("No SQL statement was provided.")
+
+	if len(parsed) > 1:
+		raise ValueError("Only a single SELECT statement is allowed; multiple statements were detected.")
+
+	forbidden = (
+		exp.Insert,
+		exp.Update,
+		exp.Delete,
+		exp.Create,
+		exp.Drop,
+		exp.Alter,
+		exp.Command,
+	)
+
+	for statement in parsed:
+		# Only allow SELECTs (or WITH ... SELECT CTEs)
+		if not isinstance(statement, exp.Select):
+			if not isinstance(statement, exp.With):
+				raise ValueError(
+					f"Only SELECT statements are allowed. Detected statement type: {type(statement).__name__}"
+				)
+		# Walk the full AST to catch forbidden operations embedded anywhere
+		for node in statement.walk():
+			if isinstance(node, forbidden):
+				raise ValueError(f"Forbidden SQL operation detected: {type(node).__name__}")
+
+	# --- Execute the validated SELECT ---
+	try:
+		with get_connection_sql_server(server_name, db_name) as conn:
+			cursor = conn.cursor()
+			cursor.execute(sql)
+			columns = [col[0] for col in cursor.description]
+			return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+	except pyodbc.Error as e:
+		print("Error executing query:", e)
+		return []

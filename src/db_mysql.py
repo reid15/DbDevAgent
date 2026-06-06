@@ -3,6 +3,8 @@
 
 import mysql.connector
 import mysql.connector.cursor
+import sqlglot
+from sqlglot import exp
 
 def get_connection_mysql(host, db_name, user, password, port=3306):
     """Get a connection for a MySQL database"""
@@ -323,4 +325,73 @@ def get_object_definition(host, db_name, user, password, schema, object_name, po
 
     except mysql.connector.Error as e:
         print("Error connecting to MySQL:", e)
+        return []
+
+
+def execute_select_query(host, db_name, user, password, sql, port=3306):
+    """Execute a SQL SELECT query and return the results as a list of dicts.
+
+    Only SELECT statements are permitted. Any other statement type (INSERT,
+    UPDATE, DELETE, DDL, etc.) will raise a ValueError before touching the
+    database.
+
+    Args:
+        host:     MySQL server hostname.
+        db_name:  Target database name.
+        user:     MySQL username.
+        password: MySQL password.
+        sql:      The SQL query string to execute.
+        port:     MySQL port (default 3306).
+
+    Returns:
+        A list of dicts mapping column name -> value for each row returned.
+
+    Raises:
+        ValueError: If the query is not a plain SELECT statement, or if it
+                    cannot be parsed.
+    """
+    # --- Validate with sqlglot before executing anything ---
+    try:
+        parsed = sqlglot.parse(sql, read="mysql")
+    except sqlglot.errors.ParseError as e:
+        raise ValueError(f"Query could not be parsed: {e}") from e
+
+    parsed = [s for s in parsed if s is not None]
+    if not parsed:
+        raise ValueError("No SQL statement was provided.")
+
+    if len(parsed) > 1:
+        raise ValueError("Only a single SELECT statement is allowed; multiple statements were detected.")
+
+    forbidden = (
+        exp.Insert,
+        exp.Update,
+        exp.Delete,
+        exp.Create,
+        exp.Drop,
+        exp.Alter,
+        exp.Command,
+    )
+
+    for statement in parsed:
+        # Only allow SELECTs (or WITH ... SELECT CTEs)
+        if not isinstance(statement, exp.Select):
+            if not isinstance(statement, exp.With):
+                raise ValueError(
+                    f"Only SELECT statements are allowed. Detected statement type: {type(statement).__name__}"
+                )
+        # Walk the full AST to catch forbidden operations embedded anywhere
+        for node in statement.walk():
+            if isinstance(node, forbidden):
+                raise ValueError(f"Forbidden SQL operation detected: {type(node).__name__}")
+
+    # --- Execute the validated SELECT ---
+    try:
+        with get_connection_mysql(host, db_name, user, password, port) as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql)
+                return [dict(row) for row in cursor.fetchall()]
+
+    except mysql.connector.Error as e:
+        print("Error executing query:", e)
         return []

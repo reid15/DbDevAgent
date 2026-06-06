@@ -463,3 +463,223 @@ class TestGetObjectDefinitionSQL:
 
         assert "%s" in captured_sql[0]
         assert "?" not in captured_sql[0]
+
+
+# ---------------------------------------------------------------------------
+# execute_select_query
+# ---------------------------------------------------------------------------
+
+def make_select_mock_conn(rows=None):
+    """Helper to build a mock connection for execute_select_query tests.
+    Uses the same cursor-as-context-manager pattern as the rest of the file."""
+    mock_cursor = MagicMock()
+    mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+    mock_cursor.__exit__ = MagicMock(return_value=False)
+    mock_cursor.fetchall.return_value = rows or []
+    mock_conn = MagicMock()
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=False)
+    mock_conn.cursor.return_value = mock_cursor
+    return mock_conn, mock_cursor
+
+
+class TestExecuteSelectQuery:
+
+    # --- Validation: statements that should be rejected before hitting the DB ---
+
+    def test_raises_on_insert(self):
+        """INSERT should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "INSERT INTO customers (name) VALUES ('Alice')"
+            )
+
+    def test_raises_on_update(self):
+        """UPDATE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "UPDATE customers SET name = 'Bob' WHERE id = 1"
+            )
+
+    def test_raises_on_delete(self):
+        """DELETE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "DELETE FROM customers WHERE id = 1"
+            )
+
+    def test_raises_on_drop(self):
+        """DROP should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "DROP TABLE customers"
+            )
+
+    def test_raises_on_create(self):
+        """CREATE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "CREATE TABLE new_table (id INT)"
+            )
+
+    def test_raises_on_alter(self):
+        """ALTER should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "ALTER TABLE customers ADD COLUMN email TEXT"
+            )
+
+    def test_raises_on_multiple_statements(self):
+        """Multiple statements separated by semicolons should be rejected."""
+        with pytest.raises(ValueError, match="multiple statements"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "SELECT 1; SELECT 2"
+            )
+
+    def test_raises_on_empty_sql(self):
+        """An empty string should be rejected."""
+        with pytest.raises(ValueError, match="No SQL statement"):
+            db_postgres.execute_select_query("my_host", "my_db", "my_user", "my_pass", "")
+
+    def test_raises_on_unparseable_sql(self):
+        """Gibberish SQL that cannot be parsed should raise ValueError."""
+        with pytest.raises(ValueError, match="could not be parsed"):
+            db_postgres.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "THIS IS NOT SQL %%% !!!"
+            )
+
+    def test_forbidden_ops_not_reached_db(self):
+        """The DB connection should never be opened when validation rejects the query."""
+        with patch("db_postgres.get_connection_postgres") as mock_get_conn:
+            try:
+                db_postgres.execute_select_query(
+                    "my_host", "my_db", "my_user", "my_pass",
+                    "DELETE FROM customers WHERE id = 1"
+                )
+            except ValueError:
+                pass
+            mock_get_conn.assert_not_called()
+
+    # --- Validation: statements that should be allowed through ---
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_plain_select_passes_validation(self, mock_get_conn):
+        """A plain SELECT should pass validation and reach the DB."""
+        mock_conn, mock_cursor = make_select_mock_conn()
+        mock_get_conn.return_value = mock_conn
+
+        result = db_postgres.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id, name FROM customers"
+        )
+
+        mock_cursor.execute.assert_called_once()
+        assert result == []
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_cte_select_passes_validation(self, mock_get_conn):
+        """A WITH ... SELECT (CTE) should pass validation."""
+        mock_conn, mock_cursor = make_select_mock_conn()
+        mock_get_conn.return_value = mock_conn
+
+        result = db_postgres.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "WITH cte AS (SELECT id FROM customers) SELECT * FROM cte"
+        )
+
+        mock_cursor.execute.assert_called_once()
+        assert result == []
+
+    # --- Execution: result mapping ---
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_returns_list_of_dicts(self, mock_get_conn):
+        """Rows should be returned as a list of column-name keyed dicts."""
+        rows = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+        mock_conn, _ = make_select_mock_conn(rows)
+        mock_get_conn.return_value = mock_conn
+
+        result = db_postgres.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id, name FROM customers"
+        )
+
+        assert result == [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_returns_empty_list_when_no_rows(self, mock_get_conn):
+        """An empty result set should return an empty list."""
+        mock_conn, _ = make_select_mock_conn([])
+        mock_get_conn.return_value = mock_conn
+
+        result = db_postgres.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers WHERE 1=0"
+        )
+
+        assert result == []
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_returns_empty_list_on_db_error(self, mock_get_conn):
+        """A psycopg2.Error during execution should return an empty list, not raise."""
+        mock_get_conn.side_effect = psycopg2.Error("connection failed")
+
+        result = db_postgres.execute_select_query(
+            "bad_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers"
+        )
+
+        assert result == []
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_connects_to_correct_host_and_db(self, mock_get_conn):
+        """Should connect using the host and db_name passed as arguments."""
+        mock_conn, _ = make_select_mock_conn()
+        mock_get_conn.return_value = mock_conn
+
+        db_postgres.execute_select_query(
+            "prod_host", "sales_db", "my_user", "my_pass",
+            "SELECT id FROM orders"
+        )
+
+        call_args = mock_get_conn.call_args[0]
+        assert call_args[0] == "prod_host"
+        assert call_args[1] == "sales_db"
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_uses_real_dict_cursor(self, mock_get_conn):
+        """Should open the cursor with RealDictCursor for dict-based row access."""
+        mock_conn, _ = make_select_mock_conn()
+        mock_get_conn.return_value = mock_conn
+
+        db_postgres.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers"
+        )
+
+        mock_conn.cursor.assert_called_once_with(
+            cursor_factory=psycopg2.extras.RealDictCursor
+        )
+
+    @patch("db_postgres.get_connection_postgres")
+    def test_custom_port_is_passed_to_connection(self, mock_get_conn):
+        """A non-default port should be forwarded to get_connection_postgres."""
+        mock_conn, _ = make_select_mock_conn()
+        mock_get_conn.return_value = mock_conn
+
+        db_postgres.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers",
+            port=5433
+        )
+
+        call_args = mock_get_conn.call_args[0]
+        assert call_args[4] == 5433

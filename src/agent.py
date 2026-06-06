@@ -7,7 +7,7 @@ import logging
 import os
 import yaml
 
-from db_tools import get_databases, get_db_objects, get_object_definition
+from db_tools import get_databases, get_db_objects, get_object_definition, execute_select_query
 from dotenv import load_dotenv
 from file_operations import save_file, list_files, read_file
 from openai import OpenAI
@@ -53,6 +53,7 @@ tool_functions = {
     "get_databases": get_databases,
     "get_db_objects": get_db_objects,
     "get_object_definition": get_object_definition,
+    "execute_select_query": execute_select_query,
     "save_file": save_file,
     "list_files": list_files,
     "read_file": read_file
@@ -161,11 +162,15 @@ def call_openai():
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
             arguments = json.loads(tool_call.function.arguments)
-            result = call_tool(function_name, arguments)
+            try:
+                result = call_tool(function_name, arguments)
+                content = json.dumps(result, default=str)
+            except ValueError as e:
+                content = f"Error: {e}"
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
-                "content": json.dumps(result)
+                "content": content
             })
 
         final = openai_client.chat.completions.create(

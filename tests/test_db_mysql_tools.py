@@ -591,3 +591,246 @@ class TestGetObjectDefinitionSQL:
 
         for sql in captured_sql:
             assert "WHERE" in sql.upper(), f"Expected WHERE clause in query:\n{sql}"
+
+
+# ---------------------------------------------------------------------------
+# execute_select_query
+# ---------------------------------------------------------------------------
+
+class TestExecuteSelectQuery:
+
+    # --- Validation: statements that should be rejected before hitting the DB ---
+
+    def test_raises_on_insert(self):
+        """INSERT should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "INSERT INTO customers (name) VALUES ('Alice')"
+            )
+
+    def test_raises_on_update(self):
+        """UPDATE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "UPDATE customers SET name = 'Bob' WHERE id = 1"
+            )
+
+    def test_raises_on_delete(self):
+        """DELETE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "DELETE FROM customers WHERE id = 1"
+            )
+
+    def test_raises_on_drop(self):
+        """DROP should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "DROP TABLE customers"
+            )
+
+    def test_raises_on_create(self):
+        """CREATE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "CREATE TABLE new_table (id INT)"
+            )
+
+    def test_raises_on_alter(self):
+        """ALTER should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "ALTER TABLE customers ADD COLUMN email VARCHAR(200)"
+            )
+
+    def test_raises_on_multiple_statements(self):
+        """Multiple statements separated by semicolons should be rejected."""
+        with pytest.raises(ValueError, match="multiple statements"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "SELECT 1; SELECT 2"
+            )
+
+    def test_raises_on_empty_sql(self):
+        """An empty string should be rejected."""
+        with pytest.raises(ValueError, match="No SQL statement"):
+            db_mysql.execute_select_query("my_host", "my_db", "my_user", "my_pass", "")
+
+    def test_raises_on_unparseable_sql(self):
+        """Gibberish SQL that cannot be parsed should raise ValueError."""
+        with pytest.raises(ValueError, match="could not be parsed"):
+            db_mysql.execute_select_query(
+                "my_host", "my_db", "my_user", "my_pass",
+                "THIS IS NOT SQL %%% !!!"
+            )
+
+    # --- Validation: statements that should be allowed through ---
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_plain_select_passes_validation(self, mock_get_conn):
+        """A plain SELECT should pass validation and reach the DB."""
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_mysql.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id, name FROM customers"
+        )
+
+        mock_cursor.execute.assert_called_once()
+        assert result == []
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_cte_select_passes_validation(self, mock_get_conn):
+        """A WITH ... SELECT (CTE) should pass validation."""
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_mysql.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "WITH cte AS (SELECT id FROM customers) SELECT * FROM cte"
+        )
+
+        mock_cursor.execute.assert_called_once()
+        assert result == []
+
+    # --- Execution: result mapping ---
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_returns_list_of_dicts(self, mock_get_conn):
+        """Rows should be returned as a list of column-name keyed dicts."""
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchall.return_value = [
+            {"id": 1, "name": "Alice"},
+            {"id": 2, "name": "Bob"},
+        ]
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_mysql.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id, name FROM customers"
+        )
+
+        assert result == [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_returns_empty_list_when_no_rows(self, mock_get_conn):
+        """An empty result set should return an empty list."""
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_mysql.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers WHERE 1=0"
+        )
+
+        assert result == []
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_returns_empty_list_on_db_error(self, mock_get_conn):
+        """A mysql.connector.Error during execution should return an empty list, not raise."""
+        mock_get_conn.side_effect = mysql.connector.Error("connection failed")
+
+        result = db_mysql.execute_select_query(
+            "bad_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers"
+        )
+
+        assert result == []
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_connects_to_correct_host_and_db(self, mock_get_conn):
+        """Should connect using the host and db_name passed as arguments."""
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        db_mysql.execute_select_query(
+            "prod_host", "sales_db", "my_user", "my_pass",
+            "SELECT id FROM orders"
+        )
+
+        call_args = mock_get_conn.call_args[0]
+        assert call_args[0] == "prod_host"
+        assert call_args[1] == "sales_db"
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_uses_dictionary_cursor(self, mock_get_conn):
+        """Should open the cursor with dictionary=True for dict-based row access."""
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        db_mysql.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers"
+        )
+
+        mock_conn.cursor.assert_called_once_with(dictionary=True)
+
+    @patch("db_mysql.get_connection_mysql")
+    def test_custom_port_is_passed_to_connection(self, mock_get_conn):
+        """A non-default port should be forwarded to get_connection_mysql."""
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        db_mysql.execute_select_query(
+            "my_host", "my_db", "my_user", "my_pass",
+            "SELECT id FROM customers",
+            port=3307
+        )
+
+        call_args = mock_get_conn.call_args[0]
+        assert call_args[4] == 3307

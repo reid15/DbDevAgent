@@ -396,3 +396,197 @@ class TestGetObjectDefinitionSQL:
 
         assert "WHERE" in captured_sql[0].upper()
 
+
+# ---------------------------------------------------------------------------
+# execute_select_query
+# ---------------------------------------------------------------------------
+
+class TestExecuteSelectQuery:
+
+    # --- Validation: statements that should be rejected before hitting the DB ---
+
+    def test_raises_on_insert(self):
+        """INSERT should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "INSERT INTO dbo.Customers (Name) VALUES ('Alice')"
+            )
+
+    def test_raises_on_update(self):
+        """UPDATE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "UPDATE dbo.Customers SET Name = 'Bob' WHERE CustomerID = 1"
+            )
+
+    def test_raises_on_delete(self):
+        """DELETE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "DELETE FROM dbo.Customers WHERE CustomerID = 1"
+            )
+
+    def test_raises_on_drop(self):
+        """DROP should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "DROP TABLE dbo.Customers"
+            )
+
+    def test_raises_on_create(self):
+        """CREATE should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "CREATE TABLE dbo.NewTable (ID INT)"
+            )
+
+    def test_raises_on_alter(self):
+        """ALTER should be rejected before any DB call."""
+        with pytest.raises(ValueError, match="Forbidden|Only SELECT"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "ALTER TABLE dbo.Customers ADD Email NVARCHAR(200)"
+            )
+
+    def test_raises_on_multiple_statements(self):
+        """Multiple statements separated by semicolons should be rejected."""
+        with pytest.raises(ValueError, match="multiple statements"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "SELECT 1; SELECT 2"
+            )
+
+    def test_raises_on_empty_sql(self):
+        """An empty string should be rejected."""
+        with pytest.raises(ValueError, match="No SQL statement"):
+            db_sql_server.execute_select_query("my_server", "my_db", "")
+
+    def test_raises_on_unparseable_sql(self):
+        """Gibberish SQL that cannot be parsed should raise ValueError."""
+        with pytest.raises(ValueError, match="could not be parsed"):
+            db_sql_server.execute_select_query(
+                "my_server", "my_db",
+                "THIS IS NOT SQL %%% !!!"
+            )
+
+    # --- Validation: statements that should be allowed through ---
+
+    @patch("db_sql_server.get_connection_sql_server")
+    def test_plain_select_passes_validation(self, mock_get_conn):
+        """A plain SELECT should pass validation and reach the DB."""
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("CustomerID",), ("Name",)]
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_sql_server.execute_select_query(
+            "my_server", "my_db",
+            "SELECT CustomerID, Name FROM dbo.Customers"
+        )
+
+        mock_cursor.execute.assert_called_once()
+        assert result == []
+
+    @patch("db_sql_server.get_connection_sql_server")
+    def test_cte_select_passes_validation(self, mock_get_conn):
+        """A WITH ... SELECT (CTE) should pass validation."""
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("CustomerID",)]
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_sql_server.execute_select_query(
+            "my_server", "my_db",
+            "WITH cte AS (SELECT CustomerID FROM dbo.Customers) SELECT * FROM cte"
+        )
+
+        mock_cursor.execute.assert_called_once()
+        assert result == []
+
+    # --- Execution: result mapping ---
+
+    @patch("db_sql_server.get_connection_sql_server")
+    def test_returns_list_of_dicts(self, mock_get_conn):
+        """Rows should be returned as a list of column-name keyed dicts."""
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("CustomerID",), ("Name",)]
+        mock_cursor.fetchall.return_value = [(1, "Alice"), (2, "Bob")]
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_sql_server.execute_select_query(
+            "my_server", "my_db",
+            "SELECT CustomerID, Name FROM dbo.Customers"
+        )
+
+        assert result == [
+            {"CustomerID": 1, "Name": "Alice"},
+            {"CustomerID": 2, "Name": "Bob"},
+        ]
+
+    @patch("db_sql_server.get_connection_sql_server")
+    def test_returns_empty_list_when_no_rows(self, mock_get_conn):
+        """An empty result set should return an empty list."""
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("CustomerID",), ("Name",)]
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        result = db_sql_server.execute_select_query(
+            "my_server", "my_db",
+            "SELECT CustomerID, Name FROM dbo.Customers WHERE 1=0"
+        )
+
+        assert result == []
+
+    @patch("db_sql_server.get_connection_sql_server")
+    def test_returns_empty_list_on_db_error(self, mock_get_conn):
+        """A pyodbc error during execution should return an empty list, not raise."""
+        mock_get_conn.side_effect = pyodbc.Error("connection failed")
+
+        result = db_sql_server.execute_select_query(
+            "my_server", "my_db",
+            "SELECT CustomerID FROM dbo.Customers"
+        )
+
+        assert result == []
+
+    @patch("db_sql_server.get_connection_sql_server")
+    def test_connects_to_correct_server_and_db(self, mock_get_conn):
+        """Should connect to the server and database passed as arguments."""
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("ID",)]
+        mock_cursor.fetchall.return_value = []
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value = mock_cursor
+        mock_get_conn.return_value = mock_conn
+
+        db_sql_server.execute_select_query(
+            "SERVER1", "SalesDB",
+            "SELECT ID FROM dbo.Orders"
+        )
+
+        mock_get_conn.assert_called_once_with("SERVER1", "SalesDB")
+

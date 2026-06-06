@@ -70,3 +70,22 @@ def get_object_definition(db_type: DB, server_name: str, db_name: str, schema: s
         # server_name = host
         return db_mysql.get_object_definition(server_name, db_name, user, password, schema, object_name, port)
        
+def execute_select_query(db_type: DB, server_name: str, db_name: str, user: str, password: str, port: int, sql: str):
+    """Execute a SELECT query against the specified database"""
+    try:
+        db_enum = DB(db_type)
+    except ValueError:
+        raise ValueError(f"Invalid database type '{db_type}'. Must be one of: {[e.value for e in DB]}")  
+        
+    if db_type == DB.sql_server:
+        return db_sql_server.execute_select_query(server_name, db_name, sql)
+    elif db_type == DB.sqlite:
+        # server_name should be the database path
+        return db_sqlite.execute_select_query(server_name, object_name)
+    elif db_enum == DB.postgres:
+        # server_name = host
+        return db_postgres.execute_select_query(server_name, db_name, user, password, schema, object_name, port)
+    elif db_enum == DB.mysql:
+        # server_name = host
+        return db_mysql.execute_select_query(server_name, db_name, user, password, schema, object_name, port)
+        
