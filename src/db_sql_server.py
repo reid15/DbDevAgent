@@ -91,6 +91,7 @@ def get_object_definition(server_name, db_name, schema, object_name):
                             CASE WHEN c.DATA_TYPE IN ('char', 'varchar', 'nchar', 'nvarchar', 'binary', 'varbinary') THEN 
                                 '(' + IIF(c.CHARACTER_MAXIMUM_LENGTH = -1, 'MAX', CAST(c.CHARACTER_MAXIMUM_LENGTH AS VARCHAR(10))) + ')' 
                                 WHEN c.DATA_TYPE IN ('numeric', 'decimal') THEN CONCAT('(', c.NUMERIC_PRECISION, ',', c.NUMERIC_SCALE, ')')
+                                WHEN c.DATA_TYPE = 'vector' THEN CONCAT('(', CAST(((c.CHARACTER_MAXIMUM_LENGTH - 8) / 4) AS VARCHAR(10)), ')')
                             ELSE '' END, ' ', 
                             -- Is Nullable
                             (CASE WHEN c.IS_NULLABLE = 'NO' THEN 'NOT NULL' ELSE 'NULL' END),

@@ -9,7 +9,7 @@ import yaml
 
 from db_tools import get_databases, get_db_objects, get_object_definition, execute_select_query
 from dotenv import load_dotenv
-from file_operations import save_file, list_files, read_file
+from file_operations import save_file, list_files, read_file, path_exists
 from openai import OpenAI
 
 print("Starting...")
@@ -56,7 +56,8 @@ tool_functions = {
     "execute_select_query": execute_select_query,
     "save_file": save_file,
     "list_files": list_files,
-    "read_file": read_file
+    "read_file": read_file,
+    "path_exists": path_exists
 }
 
 # Load tool definitions from tools.yaml

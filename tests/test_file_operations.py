@@ -1,7 +1,7 @@
 import os
 import pytest
 import tempfile
-from file_operations import save_file, list_files, read_file
+from file_operations import path_exists, save_file, list_files, read_file
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
@@ -11,6 +11,34 @@ def temp_dir():
     """Provide a temporary directory that is cleaned up after each test."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
+
+
+# ── path_exists ──────────────────────────────────────────────────────────────
+
+class TestPathExists:
+    def test_returns_true_for_existing_file(self, temp_dir):
+        path = os.path.join(temp_dir, "file.txt")
+        open(path, "w").close()
+        assert path_exists(path) is True
+
+    def test_returns_true_for_existing_directory(self, temp_dir):
+        assert path_exists(temp_dir) is True
+
+    def test_returns_false_for_missing_file(self, temp_dir):
+        path = os.path.join(temp_dir, "nonexistent.txt")
+        assert path_exists(path) is False
+
+    def test_returns_false_for_missing_directory(self, temp_dir):
+        path = os.path.join(temp_dir, "nonexistent_dir")
+        assert path_exists(path) is False
+
+    def test_returns_false_for_empty_string(self):
+        assert path_exists("") is False
+
+    def test_returns_true_for_nested_directory(self, temp_dir):
+        nested = os.path.join(temp_dir, "a", "b", "c")
+        os.makedirs(nested)
+        assert path_exists(nested) is True
 
 
 # ── save_file ────────────────────────────────────────────────────────────────

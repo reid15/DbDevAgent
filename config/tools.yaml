@@ -122,3 +122,10 @@
     filepath:
       type: string
       description: The path to the file
+      
+- name: path_exists
+  description: Determine if the specified path or file exists
+  parameters:
+    path:
+      type: string
+      description: The path to the file or directory to check     

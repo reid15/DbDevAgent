@@ -87,6 +87,38 @@ CREATE TABLE dbo.[State](
 CREATE UNIQUE NONCLUSTERED INDEX ix_dbo_state_StateName ON dbo.[State] (StateName);
 GO
 
+-- [dbo].[SearchPhrase]
+
+DROP TABLE IF EXISTS [dbo].[SearchPhrase];
+
+CREATE TABLE [dbo].[SearchPhrase](
+	[ID] [int] IDENTITY(1,1) NOT NULL,
+	[Phrase] [nvarchar](max) NOT NULL,
+	[Embedding] [vector](1536) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)
+)
+;
+GO
+
+-- [dbo].[Embedding]
+
+DROP TABLE IF EXISTS [dbo].[Embedding];
+
+CREATE TABLE [dbo].[Embedding](
+	[ID] [int] IDENTITY(1,1) NOT NULL,
+	[Phrase] [nvarchar](max) NOT NULL,
+	[Embedding] [vector](1536) NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)
+);
+
+GO
+
 -- Add trigger for State
 
 GO

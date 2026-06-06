@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "database-agent"
-version = "1.4.1"
+version = "1.4.2"
 dependencies = ["anthropic","openai","mysql-connector-python","pyodbc","python-dotenv","pyyaml","psycopg2","sqlglot"]
 description = "Agent for database development"
 readme = "README.md"

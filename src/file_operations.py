@@ -3,7 +3,30 @@
 import os
 import shutil
 
+def path_exists(path: str) -> bool:
+    """
+    Determine if the specified path or file exists
+    
+    Args:
+        path: Path to the directory or file to check
+        
+    Returns:
+        True if the path exists, False if not
+    """    
+    return os.path.exists(path)
+    
 def save_file(directory_path:str, filename: str, content: str):
+    """
+    Save the supplied data content to the specified file at the specified location
+    
+    Args:
+        directory_path: Path to the directory to save the file
+        filename: The name of the file to save
+        content: The data to save in the file
+        
+    Returns:
+        No return value
+    """
     # Make sure the directory exists
     os.makedirs(directory_path, exist_ok=True)
 

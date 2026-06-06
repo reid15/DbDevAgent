@@ -46,10 +46,12 @@
 - Unless given other instructions, save the files to a 'file_output' directory.
 
 ### Export Database
-- The use may ask to have all of the objects in a database exported, that is, the create SQL written to files.
+- The user may ask to have all of the objects in a database exported, that is, the create SQL written to files.
 - You should be given a server name and a database name for the export. Please prompt the user for this information, if not provided.
-- Use the get_db_objects tool to get all of the objects in a database, then follow the 'Script a database object' directions to script out each object.
-- In the output directory, create a directory with the DB Enum value for the database system, then a directory with the database name, then create a directory for each object type.
-- Before exporting, prompt the user and give them the path that you are going to create for the database files. Tell them that they will need to clear out any existing files there before you can proceed. Get an answer from the user before moving on.
+- Use the get_db_objects tool to get all of the objects in a database, then follow the 'Script a database object' directions to script out each object. Each object goes into a separate script, unless directed otherwise.
+- If not given a specific output path, use the following as a default. In the output directory, create a directory with the DB Enum value for the database system, then a directory with the database name, then create a directory for each object type. Do not prompt the user for a path.
+- Before exporting, use the path_exists tool to check whether the export path exists. If it exists, prompt the user before overwriting or writing into that directory. If it does not exist, create and proceed without prompting.
+- Use the save_file tool to save each SQL script.
 - If a table has a foreign key constraint or constraints, they need to be written to a separate file. You can still use the table name to name the file, but it needs to be written to a foreign_keys directory.
+- Triggers should be in the same script as the table the trigger is on.
 - Include any schema returned by the get_db_objects tool. Use the get_object_definition tool to get the definiton for any schema returned. Any schema returned should get a script in a schemas directory.
