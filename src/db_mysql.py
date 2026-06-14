@@ -118,12 +118,59 @@ def get_object_definition(host, db_name, user, password, schema, object_name, po
                 queries = [
 
                     # Stored Procedures and Functions
+                    # Reconstructs the full CREATE statement including parameters,
+                    # since information_schema.routines only stores the bare body.
+                    # Parameters are fetched from information_schema.parameters and
+                    # assembled in ordinal order; RETURNS clause is added for FUNCTIONs.
                     ("""
-                        SELECT routine_type      AS type,
-                               routine_definition AS definition
-                        FROM information_schema.routines
-                        WHERE routine_schema = %s
-                          AND routine_name   = %s;
+                        SELECT
+                            r.routine_type AS type,
+                            CONCAT(
+                                'CREATE ', r.routine_type, ' `', r.routine_schema, '`.`', r.routine_name, '`',
+                                '(',
+                                COALESCE(
+                                    (
+                                        SELECT GROUP_CONCAT(
+                                            CONCAT(
+                                                CASE p.parameter_mode
+                                                    WHEN 'IN'    THEN 'IN '
+                                                    WHEN 'OUT'   THEN 'OUT '
+                                                    WHEN 'INOUT' THEN 'INOUT '
+                                                    ELSE ''
+                                                END,
+                                                '`', p.parameter_name, '` ',
+                                                p.dtd_identifier
+                                            )
+                                            ORDER BY p.ordinal_position
+                                            SEPARATOR ', '
+                                        )
+                                        FROM information_schema.parameters AS p
+                                        WHERE p.specific_schema = r.routine_schema
+                                          AND p.specific_name   = r.routine_name
+                                          AND p.parameter_name IS NOT NULL
+                                    ),
+                                    ''
+                                ),
+                                ')',
+                                IF(r.routine_type = 'FUNCTION',
+                                    CONCAT(
+                                        ' RETURNS ',
+                                        (
+                                            SELECT p.dtd_identifier
+                                            FROM information_schema.parameters AS p
+                                            WHERE p.specific_schema  = r.routine_schema
+                                              AND p.specific_name    = r.routine_name
+                                              AND p.parameter_name  IS NULL
+                                              AND p.ordinal_position = 0
+                                        )
+                                    ),
+                                    ''
+                                ),
+                                ' ', r.routine_definition
+                            ) AS definition
+                        FROM information_schema.routines AS r
+                        WHERE r.routine_schema = %s
+                          AND r.routine_name   = %s;
                     """, (schema, object_name)),
 
                     # Views
